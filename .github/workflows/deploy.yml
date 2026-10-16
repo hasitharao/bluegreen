@@ -1,0 +1,45 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate compose file
+        run: docker compose config --quiet
+
+      - name: Build image
+        run: docker build -t bluegreen-app:test ./app
+
+      - name: Smoke test
+        run: |
+          docker run -d --name smoke -p 3000:3000 -e COLOR=test -e APP_VERSION=ci bluegreen-app:test
+          curl -fsS --retry 10 --retry-connrefused --retry-delay 1 http://localhost:3000/health
+          curl -fsS http://localhost:3000/version
+          docker rm -f smoke
+
+  deploy:
+    needs: test
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    concurrency: production-deploy
+    steps:
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh "$SSH_USER@$SSH_HOST" "cd ~/bluegreen && git pull origin main && ./deploy.sh ${GITHUB_SHA::7}"
