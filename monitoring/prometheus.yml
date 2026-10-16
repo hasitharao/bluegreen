@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: app
+    static_configs:
+      - targets: ["app-blue:3000", "app-green:3000"]

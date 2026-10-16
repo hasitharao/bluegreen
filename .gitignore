@@ -1,0 +1,5 @@
+.env
+nginx/conf.d/upstream.conf
+deploy.log
+.DS_Store
+node_modules/

@@ -1,0 +1,57 @@
+x-app: &app-base            # shared settings, reused below with "<<: *app-base"
+  build: ./app
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3000/health"]
+    interval: 5s
+    timeout: 3s
+    retries: 5
+    start_period: 5s
+
+services:
+  app-blue:
+    <<: *app-base
+    container_name: app-blue
+    environment:
+      COLOR: blue
+      APP_VERSION: ${BLUE_VERSION:-v1}
+
+  app-green:
+    <<: *app-base
+    container_name: app-green
+    environment:
+      COLOR: green
+      APP_VERSION: ${GREEN_VERSION:-v1}
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx-router
+    ports:
+      - "8088:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - app-blue
+      - app-green
+    restart: unless-stopped
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+
+volumes:
+  grafana-data:
