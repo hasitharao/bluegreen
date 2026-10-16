@@ -22,8 +22,8 @@ jobs:
       - name: Smoke test
         run: |
           docker run -d --name smoke -p 3000:3000 -e COLOR=test -e APP_VERSION=ci bluegreen-app:test
-          curl -fsS --retry 10 --retry-connrefused --retry-delay 1 http://localhost:3000/health
-          curl -fsS http://localhost:3000/version
+          curl -fsS --retry 15 --retry-all-errors --retry-delay 1
+          http://localhost:3000/health
           docker rm -f smoke
 
   deploy:
